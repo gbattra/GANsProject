@@ -157,3 +157,38 @@ for i in range(300):
     )
     if (i % 100 == 0):
         print("dLossReal:", dLossReal, "dLossFake:", dLossFake)
+
+# train the discriminator and generator together
+for i in range(100000):
+    real_image_batch = mnist.train.next_batch(batch_size)[0].reshape([batch_size, 28, 28, 1])
+    z_batch = np.random.normal(0, 1, size=[batch_size, z_dimensions])
+
+    # train D on both real and fake
+    _, __, dLossReal, dLossFake = sess.run(
+        [d_trainer_real, d_trainer_fake, d_loss_real, d_loss_fake],
+        {x_placeholder: real_image_batch, z_placeholder: z_batch}
+    )
+
+    # train generator
+    z_batch = np.random.normal(0, 1, size=[batch_size, z_dimensions])
+    _ = sess.run(g_trainer, feed_dict={z_placeholder: z_batch})
+
+    if i % 10 == 0:
+        z_batch = np.random.normal(0, 1, size=[batch_size, z_dimensions])
+        summary = sess.run(merged, {z_placeholder: z_batch, x_placeholder: real_image_batch})
+        writer.add_summary(summary, i)
+
+    if i % 100 == 0:
+        # Every 100 iterations, show a generated image
+        print("Iteration:", i, "at", datetime.datetime.now())
+        z_batch = np.random.normal(0, 1, size=[1, z_dimensions])
+        generated_images = generator(z_placeholder, 1, z_dimensions)
+        images = sess.run(generated_images, {z_placeholder: z_batch})
+        plt.imshow(images[0].reshape([28, 28]), cmap='Greys')
+        # plt.show()
+
+        # Show discriminator's estimate
+        im = images[0].reshape([1, 28, 28, 1])
+        result = discriminator(x_placeholder)
+        estimate = sess.run(result, {x_placeholder: im})
+        print("Estimate:", estimate)
